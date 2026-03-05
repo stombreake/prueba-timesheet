@@ -197,7 +197,7 @@ export default function CrewPage() {
             {/* Comprehensive Crew Creation/Editing Modal */}
             {isAdding && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in overflow-y-auto">
-                    <div className="glass-card w-full max-w-4xl p-8 shadow-2xl relative my-8 border border-white/10">
+                    <div className="glass-card w-full max-w-4xl p-4 md:p-8 shadow-2xl relative my-8 border border-white/10">
                         <div className="flex justify-between items-center mb-8">
                             <div>
                                 <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">
@@ -216,7 +216,7 @@ export default function CrewPage() {
                                     <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                                         <LayoutGrid size={14} /> Información General
                                     </h4>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-widest">Nombre Equipo</label>
                                             <input

@@ -142,7 +142,7 @@ export default function UserPage() {
             {/* Modal Form */}
             {isAdding && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-                    <div className="glass-card w-full max-w-lg p-8 shadow-2xl relative my-8">
+                    <div className="glass-card w-full max-w-lg p-6 md:p-8 shadow-2xl relative my-8">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">
                                 {editingUserId ? 'Editar Empleado' : 'Nuevo Empleado'}
@@ -153,7 +153,7 @@ export default function UserPage() {
                         </div>
 
                         <form onSubmit={handleAddUser} className="space-y-5">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="col-span-2 md:col-span-1">
                                     <label className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-widest">Nombre Completo</label>
                                     <input
@@ -178,7 +178,7 @@ export default function UserPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-widest">Cargo / Posición</label>
                                     <select
@@ -207,7 +207,7 @@ export default function UserPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-widest">Tarifa ST ($)</label>
                                     <input

@@ -261,7 +261,7 @@ export default function RecordsPage() {
                         {/* Date Header */}
                         <div
                             onClick={() => toggleGroupCollapse(date)}
-                            className="flex items-center justify-between pb-2 border-b-2 border-white/5 mx-2 cursor-pointer group/date"
+                            className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b-2 border-white/5 mx-2 cursor-pointer group/date"
                         >
                             <div className="flex items-center gap-4">
                                 <div className={`p-2 rounded-lg border transition-all ${collapsedGroups.includes(date) ? 'bg-slate-800 text-slate-500 border-white/5' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}`}>
@@ -269,15 +269,15 @@ export default function RecordsPage() {
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-3">
-                                        <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">Fin de Semana: {new Date(date).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</h2>
-                                        <ChevronRight size={22} className={`text-slate-500 transition-transform duration-300 ${collapsedGroups.includes(date) ? '' : 'rotate-90'}`} />
+                                        <h2 className="text-lg md:text-2xl font-black text-white italic uppercase tracking-tighter">Fin de Semana: {new Date(date).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</h2>
+                                        <ChevronRight size={22} className={`text-slate-500 transition-transform duration-300 hidden md:block ${collapsedGroups.includes(date) ? '' : 'rotate-90'}`} />
                                     </div>
                                     <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
                                         {Object.keys(groupedData[date]).length} Cuadrillas {collapsedGroups.includes(date) ? '(Ocultas)' : 'registradas'}
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 self-end md:self-auto">
                                 <button
                                     onClick={(e) => { e.stopPropagation(); exportToExcel(date); }}
                                     className="text-emerald-500 hover:text-emerald-400 p-2 transition-colors flex items-center gap-1 text-[10px] font-black uppercase tracking-widest"
@@ -323,8 +323,8 @@ export default function RecordsPage() {
                                             </div>
 
                                             {!isCollapsed && (
-                                                <div className="glass-card overflow-hidden border border-white/5 animate-fade-in">
-                                                    <table className="w-full text-left">
+                                                <div className="glass-card overflow-x-auto border border-white/5 animate-fade-in">
+                                                    <table className="w-full text-left min-w-[600px]">
                                                         <thead>
                                                             <tr className="bg-slate-900/50 text-[10px] uppercase font-black text-slate-500 tracking-widest border-b border-white/5">
                                                                 <th className="p-6">Empleado</th>
@@ -358,14 +358,16 @@ export default function RecordsPage() {
                                                                     </tr>
                                                                     {expandedId === sheet.id && (
                                                                         <tr className="bg-slate-950/40">
-                                                                            <td colSpan="4" className="p-8">
-                                                                                <div className="grid grid-cols-7 gap-2">
-                                                                                    {days.map((day, dIdx) => (
-                                                                                        <div key={day} className="bg-slate-900/50 rounded-xl p-3 border border-white/5 text-center">
-                                                                                            <p className="text-[8px] font-black text-slate-500 uppercase mb-1">{day}</p>
-                                                                                            <p className="text-lg font-black text-white">{sheet.dailyHours?.[dIdx] || 0}</p>
-                                                                                        </div>
-                                                                                    ))}
+                                                                            <td colSpan="4" className="p-4 md:p-8">
+                                                                                <div className="overflow-x-auto">
+                                                                                    <div className="grid grid-cols-7 gap-2 min-w-[400px]">
+                                                                                        {days.map((day, dIdx) => (
+                                                                                            <div key={day} className="bg-slate-900/50 rounded-xl p-3 border border-white/5 text-center">
+                                                                                                <p className="text-[8px] font-black text-slate-500 uppercase mb-1">{day}</p>
+                                                                                                <p className="text-lg font-black text-white">{sheet.dailyHours?.[dIdx] || 0}</p>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
                                                                                 </div>
                                                                             </td>
                                                                         </tr>
@@ -403,27 +405,27 @@ export default function RecordsPage() {
                 ))}
             </div>
 
-            {/* Edit Modal (unchanged but integrated) */}
+            {/* Edit Modal */}
             {editingSheet && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in">
-                    <div className="glass-card w-full max-w-2xl p-8 border border-white/10 shadow-2xl space-y-8">
+                    <div className="glass-card w-full max-w-2xl p-6 md:p-8 border border-white/10 shadow-2xl space-y-6 md:space-y-8 overflow-y-auto max-h-[90vh]">
                         <div className="flex justify-between items-center">
-                            <div><h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Editar Registro</h2><p className="text-slate-400 text-sm">{editingSheet.userName} - #{editingSheet.employeeNumber}</p></div>
+                            <div><h2 className="text-xl md:text-2xl font-black text-white uppercase italic tracking-tighter">Editar Registro</h2><p className="text-slate-400 text-xs md:text-sm">{editingSheet.userName} - #{editingSheet.employeeNumber}</p></div>
                             <button onClick={() => setEditingSheet(null)} className="text-slate-500 hover:text-white"><X size={24} /></button>
                         </div>
-                        <div className="grid grid-cols-7 gap-3">
+                        <div className="grid grid-cols-4 md:grid-cols-7 gap-3">
                             {days.map((day, idx) => (
                                 <div key={day} className="flex flex-col gap-2">
                                     <label className="text-[9px] font-black text-slate-500 text-center uppercase">{day}</label>
-                                    <input type="number" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 text-center font-mono font-bold text-white outline-none" value={editingSheet.dailyHours[idx]} onChange={(e) => updateEditedHours(idx, e.target.value)} />
+                                    <input type="number" className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 md:py-3 text-center font-mono font-bold text-white outline-none" value={editingSheet.dailyHours[idx]} onChange={(e) => updateEditedHours(idx, e.target.value)} />
                                 </div>
                             ))}
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="glass-card p-6 bg-blue-600/5"><p className="text-[10px] font-black text-slate-500 uppercase mb-1">Total</p><p className="text-3xl font-black text-white">{editingSheet.totalHours} hrs</p></div>
-                            <div className="glass-card p-6 bg-emerald-600/5 text-right"><p className="text-[10px] font-black text-slate-500 uppercase mb-1">Costo</p><p className="text-3xl font-black text-emerald-400">${editingSheet.totalCost.toFixed(2)}</p></div>
+                            <div className="glass-card p-4 md:p-6 bg-blue-600/5"><p className="text-[10px] font-black text-slate-500 uppercase mb-1">Total</p><p className="text-2xl md:text-3xl font-black text-white">{editingSheet.totalHours} hrs</p></div>
+                            <div className="glass-card p-4 md:p-6 bg-emerald-600/5 text-right"><p className="text-[10px] font-black text-slate-500 uppercase mb-1">Costo</p><p className="text-2xl md:text-3xl font-black text-emerald-400">${editingSheet.totalCost.toFixed(2)}</p></div>
                         </div>
-                        <div className="flex gap-4"><button onClick={() => setEditingSheet(null)} className="flex-1 py-4 bg-slate-900 text-slate-400 font-black uppercase text-xs rounded-2xl">Cancelar</button><button onClick={saveEdit} className="flex-1 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black uppercase text-xs rounded-2xl flex items-center justify-center gap-2"><Save size={18} /> Guardar</button></div>
+                        <div className="flex gap-4"><button onClick={() => setEditingSheet(null)} className="flex-1 py-3 md:py-4 bg-slate-900 text-slate-400 font-black uppercase text-xs rounded-2xl">Cancelar</button><button onClick={saveEdit} className="flex-1 py-3 md:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black uppercase text-xs rounded-2xl flex items-center justify-center gap-2"><Save size={18} /> Guardar</button></div>
                     </div>
                 </div>
             )}

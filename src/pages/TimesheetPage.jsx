@@ -264,8 +264,8 @@ export default function TimesheetPage() {
                             <p className="text-slate-500 text-sm mt-2">Asigna trabajadores en la sección de Usuarios o Cuadrillas.</p>
                         </div>
                     ) : (
-                        <div className="glass-card overflow-hidden">
-                            <table className="w-full text-left">
+                        <div className="glass-card overflow-x-auto">
+                            <table className="w-full text-left min-w-[800px]">
                                 <thead>
                                     <tr className="bg-slate-950/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5">
                                         <th className="p-4 w-48">Integrante</th>
