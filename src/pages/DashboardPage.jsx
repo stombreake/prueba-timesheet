@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     AreaChart, Area, PieChart, Pie, Cell, Legend
@@ -9,7 +10,10 @@ import {
     Users,
     ArrowUpRight,
     Map,
-    Activity
+    Activity,
+    Calendar,
+    ChevronDown,
+    ChevronUp
 } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
@@ -39,29 +43,82 @@ export default function DashboardPage() {
     const [circuits] = useLocalStorage('circuits', []);
 
     // Process data for charts
-    const totalCost = timesheets.reduce((acc, sheet) => acc + (sheet.totalCost || 0), 0);
-    const totalBillable = totalCost * 1.35; // Simulating 35% margin for "Earnings"
-    const totalProfit = totalBillable - totalCost;
+    const [globalPricePerMile] = useLocalStorage('globalPricePerMile', 0);
+    const [historyCollapsed, setHistoryCollapsed] = useState(true);
 
-    const chartData = timesheets.slice(-7).map(sheet => ({
-        name: sheet.weekEnding ? new Date(sheet.weekEnding).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }) : 'N/A',
-        Cost: sheet.totalCost,
-        Earnings: sheet.totalCost * 1.35
-    }));
+    const getNextSaturday = () => {
+        const today = new Date();
+        const dayOfWeek = today.getDay(); // 0 (Sun) to 6 (Sat)
+        const daysToSaturday = (6 - dayOfWeek + 7) % 7;
+        const nextSaturday = new Date(today);
+        nextSaturday.setDate(today.getDate() + daysToSaturday);
+        return nextSaturday.toISOString().split('T')[0];
+    };
 
-    // Crew specifically
-    const crewTotals = timesheets.reduce((acc, sheet) => {
-        const crew = sheet.crewName || 'Sin Cuadrilla';
-        if (!acc[crew]) acc[crew] = 0;
-        acc[crew] += sheet.totalCost;
+    const calculateTotals = (records) => {
+        let cost = 0;
+        let revenue = 0;
+
+        // For Revenue (Miles + External Gains), calculate once per batch (Date + Crew)
+        const batchGroups = records.reduce((acc, r) => {
+            const key = `${r.weekEnding}-${r.crewName}`;
+            if (!acc[key]) acc[key] = r;
+            return acc;
+        }, {});
+
+        Object.values(batchGroups).forEach(batchFirstRecord => {
+            revenue += (parseFloat(batchFirstRecord.milesCompleted) || 0) * globalPricePerMile;
+            revenue += (batchFirstRecord.externalGains || []).reduce((sum, g) => sum + (parseFloat(g.amount) * parseFloat(g.quantity)), 0);
+        });
+
+        // For Cost (Payroll), sum every individual record
+        cost = records.reduce((sum, r) => sum + (r.totalCost || 0), 0);
+
+        return { cost, revenue, profit: revenue - cost };
+    };
+
+    // Get current week only for summary cards
+    const latestWeekEnding = timesheets.length > 0
+        ? [...timesheets]
+            .filter(sh => sh.weekEnding)
+            .sort((a, b) => new Date(b.weekEnding) - new Date(a.weekEnding))[0]?.weekEnding
+        : null;
+
+    const currentWeekRecords = latestWeekEnding
+        ? timesheets.filter(r => r.weekEnding === latestWeekEnding)
+        : [];
+
+    const totals = calculateTotals(currentWeekRecords);
+    const totalCost = totals.cost;
+    const totalBillable = totals.revenue;
+    const totalProfit = totals.profit;
+
+    // Aggregated chart data: Group by Date ONLY for general history
+    const dateGroups = timesheets.reduce((acc, r) => {
+        const date = r.weekEnding || 'N/A';
+        if (!acc[date]) acc[date] = { cost: 0, revenue: 0, seenBatches: new Set() };
+
+        acc[date].cost += (r.totalCost || 0);
+
+        const batchKey = `${r.weekEnding}-${r.crewName}`;
+        if (!acc[date].seenBatches.has(batchKey)) {
+            acc[date].seenBatches.add(batchKey);
+            acc[date].revenue += ((parseFloat(r.milesCompleted) || 0) * globalPricePerMile) +
+                ((r.externalGains || []).reduce((sum, g) => sum + (parseFloat(g.amount) * (parseFloat(g.quantity) || 1)), 0));
+        }
         return acc;
     }, {});
 
-    const crewChartData = Object.entries(crewTotals).map(([name, cost]) => ({
-        name: name.length > 10 ? name.substring(0, 10) + '...' : name,
-        fullName: name,
-        Costo: cost
-    }));
+    const fullHistoricalChartData = Object.entries(dateGroups).map(([date, data]) => ({
+        name: date !== 'N/A' ? new Date(date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }) : 'N/A',
+        fullDate: date,
+        Cost: data.cost,
+        Earnings: data.revenue
+    })).sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate));
+
+    const chartData = fullHistoricalChartData.slice(-7);
+
+
 
     // Circuit Progress
     const circuitProgress = circuits.map(circuit => {
@@ -70,7 +127,7 @@ export default function DashboardPage() {
         const seen = new Set();
 
         circuitTimesheets.forEach(t => {
-            const key = `${t.weekEnding}-${t.crewName}`;
+            const key = `${t.weekEnding}-${t.crewName}`; // Corrected key to avoid duplication across members
             if (!seen.has(key)) {
                 seen.add(key);
                 uniqueSaves.push(t);
@@ -96,33 +153,92 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-8 animate-fade-in pb-10">
-            <div>
-                <h1 className="mb-2 text-white">Resumen Operativo</h1>
-                <p className="text-slate-400">Análisis detallado de ganancias, costos y reporte por cuadrilla.</p>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h1 className="mb-2 text-white italic tracking-tighter uppercase font-black">Resumen Operativo</h1>
+                    <p className="text-slate-400 font-medium">Análisis de ganancias y costos del reporte más reciente.</p>
+                </div>
+                <div className="bg-blue-600/10 border border-blue-500/20 px-6 py-4 rounded-3xl flex items-center gap-4 hover:border-blue-500/40 transition-all shadow-xl shadow-blue-500/5 min-w-[240px]">
+                    <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg shadow-blue-600/20">
+                        <Calendar size={22} />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] leading-none mb-2">Semana Activa</p>
+                        <p className="text-xl font-black text-white uppercase tracking-tighter italic leading-none">
+                            {new Date(latestWeekEnding || getNextSaturday()).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            {/* Stats Grid */}
+            {/* Current Week Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="space-y-6">
+                    <StatCard
+                        title="Ganancias (Semana)"
+                        value={`$${totalBillable.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                        icon={DollarSign}
+                        trend={12}
+                        color="blue"
+                    />
+
+                    {/* Weekly Earnings vs Cost Pie Chart */}
+                    <div className="glass-card p-4 h-[220px] relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 relative z-10 flex items-center gap-2">
+                            <Activity size={12} className="text-blue-400" />
+                            Relación Ganancia / Costo
+                        </h4>
+
+                        <div className="h-full w-full relative z-10">
+                            <ResponsiveContainer width="100%" height="80%">
+                                <PieChart>
+                                    <Pie
+                                        data={[
+                                            { name: 'Ganancia Neta', value: Math.max(0, totalProfit), color: '#10b981' },
+                                            { name: 'Costo Total', value: totalCost, color: '#ef4444' }
+                                        ]}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={55}
+                                        outerRadius={75}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                        stroke="none"
+                                    >
+                                        <Cell fill="#10b981" />
+                                        <Cell fill="#ef4444" />
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px' }}
+                                        formatter={(value) => [`$${value.toLocaleString()}`, '']}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+
+                            {/* Center Text */}
+                            <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Margen</p>
+                                <p className="text-xl font-black text-white italic tracking-tighter">
+                                    {totalBillable > 0 ? ((totalProfit / totalBillable) * 100).toFixed(0) : 0}%
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <StatCard
-                    title="Ganancias Totales"
-                    value={`$${totalBillable.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-                    icon={DollarSign}
-                    trend={12}
-                    color="blue"
-                />
-                <StatCard
-                    title="Costos de Nómina"
+                    title="Nómina (Semana)"
                     value={`$${totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                     icon={TrendingDown}
                     trend={-5}
                     color="red"
                 />
                 <StatCard
-                    title="Utilidad Neta"
+                    title="Utilidad (Semana)"
                     value={`$${totalProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                     icon={TrendingUp}
                     trend={18}
-                    color="emerald"
+                    color={(totalCost / (totalBillable || 1)) > 0.45 ? "amber" : "emerald"}
                 />
                 <StatCard
                     title="Personal Activo"
@@ -132,72 +248,88 @@ export default function DashboardPage() {
                 />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Main Chart */}
-                <div className="lg:col-span-2 glass-card p-6 min-h-[400px]">
-                    <div className="flex justify-between items-center mb-8">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                            <TrendingUp className="text-blue-400" size={18} />
-                            Ganancias vs Costos (Histórico)
-                        </h3>
+            {/* Historical Stats Grid */}
+            <div className="space-y-6">
+                <div
+                    className="flex items-center justify-between pb-2 border-b border-white/5 opacity-60 cursor-pointer hover:opacity-100 transition-opacity group"
+                    onClick={() => setHistoryCollapsed(!historyCollapsed)}
+                >
+                    <div className="flex items-center gap-3">
+                        <Activity size={18} className="text-slate-400" />
+                        <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Acumulado Histórico</h2>
                     </div>
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData}>
-                                <defs>
-                                    <linearGradient id="colorEarnings" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                                <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px' }}
-                                    itemStyle={{ fontSize: '12px' }}
-                                />
-                                <Area type="monotone" dataKey="Earnings" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorEarnings)" />
-                                <Area type="monotone" dataKey="Cost" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorCost)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
+                    <button className="p-1 hover:bg-white/5 rounded-lg transition-all text-slate-500 group-hover:text-blue-400">
+                        {historyCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                    </button>
                 </div>
 
-                {/* Crew Costs Chart */}
-                <div className="glass-card p-6 flex flex-col gap-6 overflow-hidden">
-                    <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                        <Users className="text-emerald-400" size={18} />
-                        Costos por Cuadrilla
-                    </h3>
+                {!historyCollapsed && (
+                    <div className="space-y-8 animate-fade-in">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 opacity-80">
+                            <StatCard
+                                title="Ganancias Totales"
+                                value={`$${calculateTotals(timesheets).revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                                icon={DollarSign}
+                                color="blue"
+                            />
+                            <StatCard
+                                title="Costos Totales"
+                                value={`$${calculateTotals(timesheets).cost.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                                icon={TrendingDown}
+                                color="red"
+                            />
+                            <StatCard
+                                title="Utilidad Neta"
+                                value={`$${calculateTotals(timesheets).profit.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                                icon={TrendingUp}
+                                color={(calculateTotals(timesheets).cost / (calculateTotals(timesheets).revenue || 1)) > 0.45 ? "amber" : "emerald"}
+                            />
+                            <StatCard
+                                title="Registros"
+                                value={timesheets.length}
+                                icon={Activity}
+                                color="slate"
+                            />
+                        </div>
 
-                    <div className="h-[250px] w-full mt-4">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={crewChartData} layout="vertical">
-                                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={10} width={80} />
-                                <Tooltip
-                                    cursor={{ fill: 'transparent' }}
-                                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px' }}
-                                    formatter={(value) => [`$${value.toLocaleString()}`, 'Costo']}
-                                />
-                                <Bar dataKey="Costo" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-
-                    <div className="mt-auto pt-6 border-t border-slate-800">
-                        <div className="flex justify-between items-center text-xs">
-                            <span className="text-slate-400">Margen Sugerido</span>
-                            <span className="text-emerald-400 font-bold">35%</span>
+                        {/* Historical Area Chart */}
+                        <div className="glass-card p-6 h-[300px] opacity-90 border-blue-500/10">
+                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                <TrendingUp size={12} className="text-blue-400" />
+                                Progresión Histórica de Ganancias vs Costos
+                            </h4>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={fullHistoricalChartData}>
+                                    <defs>
+                                        <linearGradient id="colorEarningsHist" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                        </linearGradient>
+                                        <linearGradient id="colorCostHist" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                    <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }}
+                                        itemStyle={{ fontSize: '10px', fontWeight: 'bold' }}
+                                    />
+                                    <Area type="monotone" dataKey="Earnings" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorEarningsHist)" name="Ganancia" />
+                                    <Area type="monotone" dataKey="Cost" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorCostHist)" name="Costo" />
+                                </AreaChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
-                </div>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+
+                {/* (Maybe another component or empty space for now) */}
             </div>
 
             {/* Circuit Progress Section */}

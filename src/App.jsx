@@ -165,7 +165,7 @@ function AppContent() {
                     <div className="absolute bottom-[-10%] left-[-5%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[140px] animate-float" style={{ animationDelay: '-3s' }}></div>
                 </div>
 
-                <div className="relative z-10 p-4 md:p-12 max-w-[1500px] mx-auto min-h-screen">
+                <div className="relative z-10 p-4 md:p-8 lg:p-12 w-full mx-auto min-h-screen">
                     <Routes>
                         <Route path="/" element={<DashboardPage />} />
                         <Route path="/users" element={<UserPage />} />

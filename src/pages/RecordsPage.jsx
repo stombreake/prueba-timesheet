@@ -105,13 +105,19 @@ export default function RecordsPage() {
         const firstRecord = recordsToExport[0];
         const circuitName = firstRecord?.circuitName || 'N/A';
         const milesCompleted = parseFloat(firstRecord?.milesCompleted) || 0;
-        const totalRevenue = milesCompleted * parseFloat(globalPricePerMile);
+        const circuitRevenue = milesCompleted * parseFloat(globalPricePerMile);
+
+        // External Gains Revenue
+        const externalGainsRevenue = (firstRecord?.externalGains || []).reduce((sum, g) => sum + (parseFloat(g.amount) * (parseFloat(g.quantity) || 1)), 0);
+
+        const totalRevenue = circuitRevenue + externalGainsRevenue;
         const profitLoss = totalRevenue - globalStats.totalCost;
 
-        const boxLabelRow = summarySheet.addRow(['', 'Circuit #', '', 'TOTAL CREW COST', '', 'PRICE PER', '', 'MILES COMPLET', '', 'Gain / Loss']);
+        const boxLabelRow = summarySheet.addRow(['', 'Circuit #', '', 'TOTAL CREW COST', '', 'PRICE PER', '', 'MILES COMPLET', '', 'EXT. GAINS', '', 'Gain / Loss']);
         boxLabelRow.eachCell(c => { if (c.value) { c.font = { bold: true }; c.alignment = { horizontal: 'center' }; c.border = { top: { style: 'medium' } }; } });
 
-        const boxValueRow = summarySheet.addRow(['', circuitName, '', globalStats.totalCost, '', parseFloat(globalPricePerMile), '', milesCompleted, '', profitLoss]);
+        const boxValueRow = summarySheet.addRow(['', circuitName, '', globalStats.totalCost, '', parseFloat(globalPricePerMile), '', milesCompleted, '', externalGainsRevenue, '', profitLoss]);
+
 
         boxValueRow.getCell(4).font = { bold: true, size: 12 };
         boxValueRow.getCell(4).numFmt = '"$"#,##0.00';
@@ -230,9 +236,6 @@ export default function RecordsPage() {
                     <h1 className="mb-2 text-white italic tracking-tighter uppercase font-black">Historial de Registros</h1>
                     <p className="text-slate-400">Consulta los timesheets agrupados por fecha y cuadrilla.</p>
                 </div>
-                <button onClick={exportToExcel} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 border border-emerald-500/20">
-                    <Download size={18} /> Exportar Excel
-                </button>
             </div>
 
             {/* Filters */}
@@ -307,15 +310,37 @@ export default function RecordsPage() {
                                                 <div onClick={() => toggleGroupCollapse(groupKey)} className="flex items-center gap-4 cursor-pointer flex-grow">
                                                     <div className={`p-1.5 rounded-lg border transition-all ${isCollapsed ? 'bg-slate-800 text-slate-500 border-white/5' : 'bg-blue-600/10 text-blue-400 border-blue-500/20'}`}><Layers size={14} /></div>
                                                     <div>
-                                                        <div className="flex items-center gap-3">
-                                                            <h3 className="text-lg font-black text-slate-300 uppercase tracking-tight italic group-hover:text-white transition-colors">{crewName}</h3>
-                                                            {groupedData[date][crewName][0]?.circuitName && (
-                                                                <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest flex items-center gap-1">
-                                                                    <MapPin size={10} />
-                                                                    {groupedData[date][crewName][0].circuitName} ({groupedData[date][crewName][0].milesCompleted} mi) - Cobrado: ${(groupedData[date][crewName][0].milesCompleted * globalPricePerMile).toFixed(2)}
-                                                                </span>
-                                                            )}
-                                                            <ChevronRight size={16} className={`text-slate-600 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
+                                                        <div className="flex flex-col gap-1">
+                                                            <div className="flex items-center gap-3">
+                                                                <h3 className="text-lg font-black text-slate-300 uppercase tracking-tight italic group-hover:text-white transition-colors">{crewName}</h3>
+                                                                {groupedData[date][crewName][0]?.circuitName && (
+                                                                    <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest flex items-center gap-1">
+                                                                        <MapPin size={10} />
+                                                                        {groupedData[date][crewName][0].circuitName} ({groupedData[date][crewName][0].milesCompleted} mi)
+                                                                    </span>
+                                                                )}
+                                                                <ChevronRight size={16} className={`text-slate-600 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {(() => {
+                                                                    const firstRec = groupedData[date][crewName][0];
+                                                                    const extRevenue = (firstRec.externalGains || []).reduce((sum, g) => sum + (g.amount * g.quantity), 0);
+                                                                    const circRevenue = (firstRec.milesCompleted || 0) * globalPricePerMile;
+                                                                    const totalRev = circRevenue + extRevenue;
+                                                                    return (
+                                                                        <>
+                                                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                                                                                Ingreso Total: <span className="text-emerald-400">${totalRev.toFixed(2)}</span>
+                                                                            </span>
+                                                                            {(firstRec.externalGains || []).length > 0 && (
+                                                                                <span className="text-[9px] font-black text-blue-400/60 uppercase tracking-widest px-2 border-l border-white/10">
+                                                                                    + {(firstRec.externalGains || []).length} Ganancias Ext. (${extRevenue.toFixed(2)})
+                                                                                </span>
+                                                                            )}
+                                                                        </>
+                                                                    );
+                                                                })()}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -407,8 +432,8 @@ export default function RecordsPage() {
 
             {/* Edit Modal */}
             {editingSheet && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in">
-                    <div className="glass-card w-full max-w-2xl p-6 md:p-8 border border-white/10 shadow-2xl space-y-6 md:space-y-8 overflow-y-auto max-h-[90vh]">
+                <div className="fixed inset-0 z-50 flex justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in overflow-y-auto custom-scrollbar">
+                    <div className="glass-card w-full max-w-2xl p-6 md:p-8 border border-white/10 shadow-2xl space-y-6 md:space-y-8 my-auto">
                         <div className="flex justify-between items-center">
                             <div><h2 className="text-xl md:text-2xl font-black text-white uppercase italic tracking-tighter">Editar Registro</h2><p className="text-slate-400 text-xs md:text-sm">{editingSheet.userName} - #{editingSheet.employeeNumber}</p></div>
                             <button onClick={() => setEditingSheet(null)} className="text-slate-500 hover:text-white"><X size={24} /></button>

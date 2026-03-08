@@ -6,33 +6,83 @@ export default function UserPage() {
     const [users, setUsers] = useLocalStorage('users', []);
     const [isAdding, setIsAdding] = useState(false);
     const [editingUserId, setEditingUserId] = useState(null);
-    const [crews] = useLocalStorage('crews', []);
-    const [newUser, setNewUser] = useState({ name: '', employeeNumber: '', position: '', payRate: '', otRate: '', crew: '' });
+    const [crews, setCrews] = useLocalStorage('crews', []);
+    const [newUser, setNewUser] = useState({ name: '', employeeNumber: '', position: '', payRate: '', otRate: '', crew: '', crewId: '' });
 
     const handleAddUser = (e) => {
         e.preventDefault();
+
+        // Check for duplicate employee number
+        const isDuplicate = users.some(u =>
+            u.employeeNumber.toString().trim() === newUser.employeeNumber.toString().trim() &&
+            u.id !== editingUserId
+        );
+
+        if (isDuplicate) {
+            alert(`El número de empleado "${newUser.employeeNumber}" ya está registrado. Por favor usa uno diferente.`);
+            return;
+        }
+
+        const userWithId = editingUserId ? { ...newUser, id: editingUserId } : { ...newUser, id: Date.now().toString() };
+
+        // 1. Update Users State
         if (editingUserId) {
-            const updatedUsers = users.map(u =>
-                u.id === editingUserId ? { ...u, ...newUser } : u
-            );
-            setUsers(updatedUsers);
+            setUsers(users.map(u => u.id === editingUserId ? userWithId : u));
             setEditingUserId(null);
         } else {
-            const userWithId = { ...newUser, id: Date.now().toString() };
             setUsers([...users, userWithId]);
         }
-        setNewUser({ name: '', employeeNumber: '', position: '', payRate: '', otRate: '', crew: '' });
+
+        // 2. Sync with Crews State
+        const oldUser = users.find(u => u.id === editingUserId);
+        const oldCrewId = oldUser?.crewId;
+        const newCrewId = userWithId.crewId;
+
+        if (oldCrewId !== newCrewId) {
+            let updatedCrews = [...crews];
+
+            // Remove from old crew
+            if (oldCrewId) {
+                updatedCrews = updatedCrews.map(c =>
+                    c.id === oldCrewId
+                        ? { ...c, members: (c.members || []).filter(mId => mId !== userWithId.id) }
+                        : c
+                );
+            }
+
+            // Add to new crew
+            if (newCrewId) {
+                updatedCrews = updatedCrews.map(c =>
+                    c.id === newCrewId
+                        ? { ...c, members: [...(c.members || []).filter(mId => mId !== userWithId.id), userWithId.id] }
+                        : c
+                );
+            }
+
+            setCrews(updatedCrews);
+        }
+
+        setNewUser({ name: '', employeeNumber: '', position: '', payRate: '', otRate: '', crew: '', crewId: '' });
         setIsAdding(false);
     };
 
     const deleteUser = (id) => {
         if (confirm('¿Estás seguro de eliminar este usuario?')) {
+            const userToDelete = users.find(u => u.id === id);
+            if (userToDelete?.crewId) {
+                const updatedCrews = crews.map(c =>
+                    c.id === userToDelete.crewId
+                        ? { ...c, members: (c.members || []).filter(mId => mId !== id) }
+                        : c
+                );
+                setCrews(updatedCrews);
+            }
             setUsers(users.filter(u => u.id !== id));
         }
     };
 
     const startEdit = (user) => {
-        setNewUser({ ...user });
+        setNewUser({ ...user, crewId: user.crewId || '' });
         setEditingUserId(user.id);
         setIsAdding(true);
     };
@@ -46,7 +96,7 @@ export default function UserPage() {
                 </div>
                 <button
                     onClick={() => {
-                        setNewUser({ name: '', employeeNumber: '', position: '', payRate: '', otRate: '', crew: '' });
+                        setNewUser({ name: '', employeeNumber: '', position: '', payRate: '', otRate: '', crew: '', crewId: '' });
                         setEditingUserId(null);
                         setIsAdding(true);
                     }}
@@ -141,8 +191,8 @@ export default function UserPage() {
 
             {/* Modal Form */}
             {isAdding && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-                    <div className="glass-card w-full max-w-lg p-6 md:p-8 shadow-2xl relative my-8">
+                <div className="fixed inset-0 z-50 flex justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto custom-scrollbar">
+                    <div className="glass-card w-full max-w-lg p-6 md:p-8 shadow-2xl relative border border-white/10 my-auto">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">
                                 {editingUserId ? 'Editar Empleado' : 'Nuevo Empleado'}
@@ -197,12 +247,19 @@ export default function UserPage() {
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 mb-2 uppercase tracking-widest">Cuadrilla / Equipo</label>
                                     <select
-                                        value={newUser.crew}
-                                        onChange={e => setNewUser({ ...newUser, crew: e.target.value })}
+                                        value={newUser.crewId}
+                                        onChange={e => {
+                                            const selectedCrew = crews.find(c => c.id === e.target.value);
+                                            setNewUser({
+                                                ...newUser,
+                                                crewId: e.target.value,
+                                                crew: selectedCrew ? selectedCrew.name : ''
+                                            });
+                                        }}
                                         className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold"
                                     >
                                         <option value="">Sin Asignar</option>
-                                        {crews.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                        {crews.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
                                 </div>
                             </div>

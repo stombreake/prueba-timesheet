@@ -55,6 +55,14 @@ export default function CrewPage() {
             setEditingCrewId(null);
         } else {
             const crewId = Date.now().toString();
+
+            // Final safety check: ensure none of the members are already in another crew
+            const busyMembers = users.filter(u => newCrew.members.includes(u.id) && u.crewId);
+            if (busyMembers.length > 0) {
+                alert(`Error: Los siguientes empleados ya están en otra cuadrilla: ${busyMembers.map(u => u.name).join(', ')}`);
+                return;
+            }
+
             const crewWithId = { ...newCrew, id: crewId };
             setCrews([...crews, crewWithId]);
 
@@ -128,7 +136,7 @@ export default function CrewPage() {
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
                 {crews.length === 0 ? (
                     <div className="col-span-full glass-card p-12 flex flex-col items-center justify-center text-slate-500 text-center border-2 border-dashed border-slate-800">
                         <LayoutGrid size={48} className="mb-4 opacity-20" />
@@ -196,9 +204,9 @@ export default function CrewPage() {
 
             {/* Comprehensive Crew Creation/Editing Modal */}
             {isAdding && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in overflow-y-auto">
-                    <div className="glass-card w-full max-w-4xl p-4 md:p-8 shadow-2xl relative my-8 border border-white/10">
-                        <div className="flex justify-between items-center mb-8">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-slate-950/90 backdrop-blur-md animate-fade-in">
+                    <div className="glass-card w-[95vw] max-w-[1600px] h-full max-h-[90vh] flex flex-col p-4 md:p-8 shadow-2xl relative border border-white/10">
+                        <div className="flex justify-between items-center mb-6 flex-shrink-0">
                             <div>
                                 <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">
                                     {editingCrewId ? 'Editar Configuración' : 'Nueva Cuadrilla'}
@@ -210,9 +218,9 @@ export default function CrewPage() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleAddCrew} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div className="space-y-6">
-                                <div className="glass-card p-6 bg-white/[0.02] border border-white/5 space-y-4">
+                        <form onSubmit={handleAddCrew} className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-2 gap-8 overflow-y-auto lg:overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="flex flex-col space-y-6 lg:min-h-0">
+                                <div className="glass-card p-6 bg-white/[0.02] border border-white/5 space-y-4 flex-shrink-0">
                                     <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                                         <LayoutGrid size={14} /> Información General
                                     </h4>
@@ -255,47 +263,62 @@ export default function CrewPage() {
                                     </div>
                                 </div>
 
-                                <div className="glass-card p-6 bg-white/[0.02] border border-white/5">
-                                    <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <div className="glass-card p-6 bg-white/[0.02] border border-white/5 flex flex-col min-h-[300px] lg:flex-1">
+                                    <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2 flex-shrink-0">
                                         <UserPlus size={14} /> Miembros de Cuadrilla
                                     </h4>
-                                    <div className="max-h-64 overflow-y-auto pr-2 custom-scrollbar space-y-2">
-                                        {availableUsers.map(user => (
-                                            <label
-                                                key={user.id}
-                                                className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${newCrew.members.includes(user.id)
-                                                    ? 'bg-blue-600/10 border-blue-500/30'
-                                                    : 'bg-slate-900/50 border-white/5 hover:border-white/10'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black ${newCrew.members.includes(user.id) ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-600'}`}>
-                                                        {newCrew.members.includes(user.id) ? <Check size={14} /> : user.name.charAt(0)}
+                                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2 min-h-0">
+                                        {availableUsers.map(user => {
+                                            const isOccupied = user.crewId && user.crewId !== editingCrewId;
+                                            const isSelected = newCrew.members.includes(user.id);
+
+                                            return (
+                                                <label
+                                                    key={user.id}
+                                                    className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${isSelected
+                                                            ? 'bg-blue-600/10 border-blue-500/30'
+                                                            : isOccupied
+                                                                ? 'bg-slate-900/20 border-white/5 opacity-50 cursor-not-allowed'
+                                                                : 'bg-slate-900/50 border-white/5 hover:border-white/10 cursor-pointer'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-600'}`}>
+                                                            {isSelected ? <Check size={14} /> : user.name.charAt(0)}
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-xs font-black text-slate-200">{user.name}</p>
+                                                                {isOccupied && (
+                                                                    <span className="text-[7px] font-black bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/10 uppercase tracking-widest">
+                                                                        En: {user.crew}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">{user.position}</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-xs font-black text-slate-200">{user.name}</p>
-                                                        <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">{user.position}</p>
-                                                    </div>
-                                                </div>
-                                                <input
-                                                    type="checkbox"
-                                                    className="hidden"
-                                                    checked={newCrew.members.includes(user.id)}
-                                                    onChange={() => toggleMember(user.id)}
-                                                />
-                                            </label>
-                                        ))}
+                                                    <input
+                                                        type="checkbox"
+                                                        className="hidden"
+                                                        disabled={isOccupied}
+                                                        checked={isSelected}
+                                                        onChange={() => !isOccupied && toggleMember(user.id)}
+                                                    />
+                                                </label>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-6">
-                                <div className="glass-card p-6 bg-white/[0.02] border border-white/5 h-full flex flex-col">
-                                    <h4 className="text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                            <div className="flex flex-col space-y-6 lg:min-h-0">
+                                <div className="glass-card p-6 bg-white/[0.02] border border-white/5 flex flex-col min-h-[300px] lg:flex-1">
+                                    <h4 className="text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2 flex-shrink-0">
                                         <Truck size={14} /> Maquinaria de Cuadrilla
                                     </h4>
 
-                                    <div className="space-y-3 flex-grow">
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2 min-h-0">
                                         {newCrew.equipment.map((eq, idx) => (
                                             <div key={idx} className="flex gap-2 items-center group">
                                                 <div className="flex-grow grid grid-cols-2 gap-3 bg-slate-950 p-4 rounded-2xl border border-white/5 shadow-inner">
@@ -339,21 +362,22 @@ export default function CrewPage() {
                                         </button>
                                     </div>
 
-                                    <div className="mt-8 flex gap-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsAdding(false)}
-                                            className="flex-1 px-6 py-4 rounded-2xl border border-white/5 text-slate-400 hover:bg-white/5 transition-all font-black uppercase tracking-widest text-[10px]"
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black rounded-2xl px-6 py-4 hover:shadow-2xl hover:shadow-blue-500/20 transition-all active:scale-95 uppercase tracking-widest text-[10px]"
-                                        >
-                                            {editingCrewId ? 'Guardar Cambios' : 'Crear Equipo'}
-                                        </button>
-                                    </div>
+                                </div>
+
+                                <div className="mt-6 pt-6 border-t border-white/5 flex gap-4 flex-shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAdding(false)}
+                                        className="flex-1 px-6 py-4 rounded-2xl border border-white/5 text-slate-400 hover:bg-white/5 transition-all font-black uppercase tracking-widest text-[10px]"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black rounded-2xl px-6 py-4 hover:shadow-2xl hover:shadow-blue-500/20 transition-all active:scale-95 uppercase tracking-widest text-[10px]"
+                                    >
+                                        {editingCrewId ? 'Guardar Cambios' : 'Crear Equipo'}
+                                    </button>
                                 </div>
                             </div>
                         </form>

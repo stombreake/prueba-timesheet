@@ -127,7 +127,7 @@ export default function CircuitsPage() {
                 </div>
 
                 {/* Circuits List */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
                     {filteredCircuits.length === 0 ? (
                         <div className="col-span-full py-20 text-center flex flex-col items-center gap-4 text-slate-600">
                             <Map size={48} className="opacity-20" /> {/* Changed from MapSpace */}
@@ -170,8 +170,8 @@ export default function CircuitsPage() {
 
             {/* Add / Edit Modal */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-[#0f172a] border border-white/10 p-8 rounded-3xl w-full max-w-md shadow-2xl relative">
+                <div className="fixed inset-0 z-50 flex justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in overflow-y-auto custom-scrollbar">
+                    <div className="bg-[#0f172a] border border-white/10 p-8 rounded-3xl w-full max-w-md shadow-2xl relative my-auto">
                         <button
                             onClick={closeModal}
                             className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"
